@@ -65,6 +65,7 @@ FVector UGL_CameraComponent::GetThirdPersonTraceStartLocation() const
 void UGL_CameraComponent::PostLoad()
 {
 	Super::PostLoad();
+
 	// Camera mesh never renders; always tick pose.
 	VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 }
@@ -72,6 +73,7 @@ void UGL_CameraComponent::PostLoad()
 void UGL_CameraComponent::OnRegister()
 {
 	Character = Cast<ACharacter>(GetOwner());
+
 	Super::OnRegister();
 }
 
@@ -100,8 +102,8 @@ void UGL_CameraComponent::InitAnim(bool bForceReinitialize)
 
 void UGL_CameraComponent::BeginPlay()
 {
-	check(GetAnimInstance());
-	check(Character);
+	ensure(GetAnimInstance());
+	ensure(Character);
 
 	Super::BeginPlay();
 }
@@ -128,6 +130,11 @@ void UGL_CameraComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 void UGL_CameraComponent::CompleteParallelAnimationEvaluation(bool bDoPostAnimationEvaluation)
 {
 	Super::CompleteParallelAnimationEvaluation(bDoPostAnimationEvaluation);
+
+	if (!GetAnimInstance())
+	{
+		return;
+	}
 
 	TickCamera(GetAnimInstance()->GetDeltaSeconds());
 }
