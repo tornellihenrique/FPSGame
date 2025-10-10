@@ -5,9 +5,20 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 
+#include "Components/GL_CameraComponent.h"
+#include "Components/FPS_HealthComponent.h"
+#include "Misc/GL_GameplayTags.h"
+#include "Game/FPS_GameMode.h"
+
 AFPS_Character::AFPS_Character(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	CameraComponent = CreateDefaultSubobject<UGL_CameraComponent>(TEXT("CameraComponent"));
+	CameraComponent->SetupAttachment(GetMesh());
+	CameraComponent->SetRelativeRotation_Direct(FRotator(0.0f, 90.0f, 0.0f));
+
+	HealthComponent = CreateDefaultSubobject<UFPS_HealthComponent>(TEXT("HealthComponent"));
+
 	PrimaryActorTick.bCanEverTick = true;
 }
 
@@ -30,6 +41,8 @@ void AFPS_Character::PreInitializeComponents()
 void AFPS_Character::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
+
+	HealthComponent->OnDeathPayload.AddDynamic(this, &AFPS_Character::HandleDeathPayload);
 }
 
 void AFPS_Character::BeginPlay()
@@ -40,6 +53,11 @@ void AFPS_Character::BeginPlay()
 void AFPS_Character::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearAllTimersForObject(this);
+
+	if (IsValid(HealthComponent))
+	{
+		HealthComponent->OnDeathPayload.RemoveDynamic(this, &AFPS_Character::HandleDeathPayload);
+	}
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -61,7 +79,19 @@ void AFPS_Character::EndViewTarget(APlayerController* PC)
 
 void AFPS_Character::CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult)
 {
+	if (CameraComponent && CameraComponent->IsActive())
+	{
+		FMinimalViewInfo ViewInfo;
+		CameraComponent->GetViewInfo(ViewInfo);
 
+		// ...
+
+		OutResult = ViewInfo;
+
+		return;
+	}
+
+	Super::CalcCamera(DeltaTime, OutResult);
 }
 
 void AFPS_Character::PossessedBy(AController* NewController)
@@ -131,6 +161,41 @@ void AFPS_Character::SetupPlayerInputComponent(UInputComponent* Input)
 	{
 		EIC->BindAction(IA_Move, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Move);
 		EIC->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Look);
+	}
+}
+
+void AFPS_Character::HandleDeathPayload(const FDeathEventPayload& Data)
+{
+	if (AFPS_GameMode* GM = GetWorld()->GetAuthGameMode<AFPS_GameMode>())
+	{
+		// FKillEventData KillData(Data.DamageType, Data.DamageCauser, Data.bHeadshot, Data.FinalDamage);
+		// GM->OnCharacterDied(this, Data.InstigatorController, KillData);
+	}
+
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		FTimerHandle StopTickTh;
+		GetWorldTimerManager().SetTimer(StopTickTh, FTimerDelegate::CreateWeakLambda(this, [this]
+		{
+			SetActorTickEnabled(false);
+		}), 5.f, false);
+	}
+
+	NetHandleDeathPayload(Data);
+}
+
+void AFPS_Character::NetHandleDeathPayload_Implementation(const FDeathEventPayload& Data)
+{
+	if (IsLocallyControlled()) { SetViewModeTag(GameplayViewModeTags::ThirdPerson); }
+
+	StartRagdollingImplementation();
+
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		if (!Data.Impulse.IsNearlyZero() && MeshComp->IsSimulatingPhysics(Data.BoneName))
+		{
+			MeshComp->AddImpulseAtLocation(Data.Impulse * MeshComp->GetMass(), Data.ImpulseAt, Data.BoneName);
+		}
 	}
 }
 

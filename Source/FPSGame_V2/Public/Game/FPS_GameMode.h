@@ -25,5 +25,8 @@ public:
 	virtual bool UpdatePlayerStartSpot(AController* Player, const FString& Portal, FString& OutErrorMessage) override;
 	virtual AActor* FindPlayerStart_Implementation(AController* Player, const FString& IncomingName = TEXT("")) override;
 	//~ End of AGameModeBase
+
+public:
+	virtual void CalcDamage(float& OutDamageAmount, AController* Controller, AController* OtherController);
 	
 };

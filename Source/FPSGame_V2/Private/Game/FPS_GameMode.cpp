@@ -45,3 +45,8 @@ AActor* AFPS_GameMode::FindPlayerStart_Implementation(AController* Player, const
 {
 	return Super::FindPlayerStart_Implementation(Player, IncomingName);
 }
+
+void AFPS_GameMode::CalcDamage(float& OutDamageAmount, AController* Controller, AController* OtherController)
+{
+	// #TODO: Finish
+}

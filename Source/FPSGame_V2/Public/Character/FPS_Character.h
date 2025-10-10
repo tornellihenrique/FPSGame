@@ -9,11 +9,20 @@
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
+class UGL_CameraComponent;
+class UFPS_HealthComponent;
+struct FDeathEventPayload;
 
 UCLASS()
 class FPSGAME_V2_API AFPS_Character : public AGL_Character
 {
 	GENERATED_BODY()
+
+	UPROPERTY(Category=Components, VisibleDefaultsOnly, BlueprintReadOnly, meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UGL_CameraComponent> CameraComponent;
+
+	UPROPERTY(Category=Components, VisibleDefaultsOnly, BlueprintReadOnly, meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UFPS_HealthComponent> HealthComponent;
 
 public:
 	UPROPERTY(EditDefaultsOnly, Category = "Settings|Input")
@@ -56,6 +65,13 @@ public:
 
 	//~ AGL_Character
 	//~ End of AGL_Character
+
+protected:
+	UFUNCTION()
+	void HandleDeathPayload(const FDeathEventPayload& Data);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void NetHandleDeathPayload(const FDeathEventPayload& Data);
 
 protected:
 	virtual void Input_Move(const FInputActionValue& Value);
