@@ -5,21 +5,46 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 
-#include "Components/GL_CameraComponent.h"
 #include "Components/FPS_HealthComponent.h"
 #include "Misc/GL_GameplayTags.h"
 #include "Game/FPS_GameMode.h"
+#include "Components/GE_EquipmentManagerComponent.h"
+#include "Equipments/GE_Equipment.h"
+#include "Misc/GE_EquipmentAnimData.h"
+#include "Camera/FPS_CameraComponent.h"
 
 AFPS_Character::AFPS_Character(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	CameraComponent = CreateDefaultSubobject<UGL_CameraComponent>(TEXT("CameraComponent"));
-	CameraComponent->SetupAttachment(GetMesh());
+	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
+	GetMesh()->SetOwnerNoSee(true);
+
+	MeshFP = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeshFP"));
+	MeshFP->SetupAttachment(GetMesh());
+	MeshFP->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	MeshFP->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	MeshFP->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+	MeshFP->SetOnlyOwnerSee(true);
+	MeshFP->SetCanEverAffectNavigation(false);
+
+	CameraComponent = CreateDefaultSubobject<UFPS_CameraComponent>(TEXT("CameraComponent"));
+	CameraComponent->SetupAttachment(MeshFP);
 	CameraComponent->SetRelativeRotation_Direct(FRotator(0.0f, 90.0f, 0.0f));
+
+	EquipmentHolderTP = CreateDefaultSubobject<USceneComponent>(TEXT("EquipmentHolder"));
+	EquipmentHolderTP->SetupAttachment(GetMesh(), TEXT("VB EquipmentPivot"));
+	EquipmentHolderTP->SetRelativeRotation_Direct(FRotator(0.0f, 180.0f, 0.0f));
+
+	EquipmentHolderFP = CreateDefaultSubobject<USceneComponent>(TEXT("EquipmentHolderFP"));
+	EquipmentHolderFP->SetupAttachment(MeshFP, TEXT("VB EquipmentPivot"));
+	EquipmentHolderFP->SetRelativeRotation_Direct(FRotator(0.0f, 180.0f, 0.0f));
 
 	HealthComponent = CreateDefaultSubobject<UFPS_HealthComponent>(TEXT("HealthComponent"));
 
-	PrimaryActorTick.bCanEverTick = true;
+	EquipmentManager = CreateDefaultSubobject<UGE_EquipmentManagerComponent>(TEXT("EquipmentManager"));
+
+	ViewMode = GameplayViewModeTags::FirstPerson;
 }
 
 void AFPS_Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -43,6 +68,10 @@ void AFPS_Character::PostInitializeComponents()
 	Super::PostInitializeComponents();
 
 	HealthComponent->OnDeathPayload.AddDynamic(this, &AFPS_Character::HandleDeathPayload);
+
+	EquipmentManager->OnEquipmentChanged.AddDynamic(this, &AFPS_Character::OnEquipmentChanged);
+	EquipmentManager->OnEquipmentAdded.AddDynamic(this, &AFPS_Character::OnEquipmentAdded);
+	EquipmentManager->OnEquipmentRemoved.AddDynamic(this, &AFPS_Character::OnEquipmentRemoved);
 }
 
 void AFPS_Character::BeginPlay()
@@ -59,12 +88,60 @@ void AFPS_Character::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		HealthComponent->OnDeathPayload.RemoveDynamic(this, &AFPS_Character::HandleDeathPayload);
 	}
 
+	if (IsValid(EquipmentManager))
+	{
+		EquipmentManager->OnEquipmentChanged.RemoveDynamic(this, &AFPS_Character::OnEquipmentChanged);
+		EquipmentManager->OnEquipmentAdded.RemoveDynamic(this, &AFPS_Character::OnEquipmentAdded);
+		EquipmentManager->OnEquipmentRemoved.RemoveDynamic(this, &AFPS_Character::OnEquipmentRemoved);
+	}
+
 	Super::EndPlay(EndPlayReason);
 }
 
 void AFPS_Character::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (AGE_Equipment* CurrentEquipment = GetCurrentEquipment())
+	{
+		if (const UGE_EquipmentAnimData* EquipmentAnimData = CurrentEquipment->AnimData)
+		{
+			AnimState.PoseFP = EquipmentAnimData->PoseFP;
+			AnimState.PoseTP = EquipmentAnimData->PoseTP;
+
+			AnimState.OriginRelativeRotation = EquipmentAnimData->OriginRelativeRotation;
+
+			AnimState.RightHandOffset = EquipmentAnimData->RightHandOffset;
+			AnimState.LeftHandOffset = EquipmentAnimData->LeftHandOffset;
+
+			AnimState.RightClavicleOffset = EquipmentAnimData->RightClavicleOffset;
+			AnimState.LeftClavicleOffset = EquipmentAnimData->LeftClavicleOffset;
+
+			AnimState.RightLowerarmOffset = EquipmentAnimData->RightLowerarmOffset;
+			AnimState.LeftLowerarmOffset = EquipmentAnimData->LeftLowerarmOffset;
+		}
+
+		// AnimState.PivotOffset = -CurrentEquipment->GetPivotPoint(); // #TODO
+
+		float TargetForceDisableRunningAlpha = 0.0f;
+
+// 		if (AGE_FireWeapon* CurrentFireWeapon = GetCurrentEquipment<AGE_FireWeapon>())
+// 		{
+// 			if (!CurrentFireWeapon->CanRun())
+// 			{
+// 				TargetForceDisableRunningAlpha = 1.0f;
+// 			}
+// 		}
+
+		AnimState.ForceDisableRunningAlpha = FMath::FInterpTo(AnimState.ForceDisableRunningAlpha, TargetForceDisableRunningAlpha, DeltaTime, 15.0f);
+	}
+	else
+	{
+		AnimState.Reset();
+
+		AnimState.PoseFP = EmptyPoseFP;
+		AnimState.PoseTP = EmptyPoseTP;
+	}
 }
 
 void AFPS_Character::BecomeViewTarget(APlayerController* PC)
@@ -161,7 +238,23 @@ void AFPS_Character::SetupPlayerInputComponent(UInputComponent* Input)
 	{
 		EIC->BindAction(IA_Move, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Move);
 		EIC->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Look);
+		EIC->BindAction(IA_Sprint, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Sprint);
+		EIC->BindAction(IA_Sprint, ETriggerEvent::Canceled, this, &AFPS_Character::Input_Sprint);
+		EIC->BindAction(IA_Walk, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Walk);
+		EIC->BindAction(IA_Crouch, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Crouch);
+		EIC->BindAction(IA_Jump, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Jump);
+		EIC->BindAction(IA_Jump, ETriggerEvent::Canceled, this, &AFPS_Character::Input_Jump);
+		EIC->BindAction(IA_View, ETriggerEvent::Triggered, this, &AFPS_Character::Input_View);
+		EIC->BindAction(IA_Cycle, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Cycle);
+		EIC->BindAction(IA_Slot, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Slot);
+		EIC->BindAction(IA_Primary, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Primary);
+		EIC->BindAction(IA_Secondary, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Secondary);
 	}
+}
+
+AGE_Equipment* AFPS_Character::GetCurrentEquipment() const
+{
+	return EquipmentManager ? EquipmentManager->GetCurrentEquipment() : nullptr;
 }
 
 void AFPS_Character::HandleDeathPayload(const FDeathEventPayload& Data)
@@ -199,6 +292,34 @@ void AFPS_Character::NetHandleDeathPayload_Implementation(const FDeathEventPaylo
 	}
 }
 
+void AFPS_Character::OnEquipmentChanged(AGE_Equipment* NewEquipment, AGE_Equipment* OldEquipment)
+{
+	if (OldEquipment)
+	{
+		OldEquipment->UpdateViewMode(false);
+	}
+
+	if (NewEquipment)
+	{
+		if (const UGE_EquipmentAnimData* EquipmentAnimData = NewEquipment->AnimData)
+		{
+			SetOverlayModeTag(EquipmentAnimData->OverlayMode);
+		}
+
+		NewEquipment->UpdateViewMode(IsOnFirstPersonView());
+	}
+}
+
+void AFPS_Character::OnEquipmentAdded(AGE_Equipment* Equipment, int32 SlotIndex)
+{
+
+}
+
+void AFPS_Character::OnEquipmentRemoved(AGE_Equipment* Equipment, int32 SlotIndex)
+{
+
+}
+
 void AFPS_Character::Input_Move(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
@@ -219,4 +340,92 @@ void AFPS_Character::Input_Look(const FInputActionValue& Value)
 
 	AddControllerYawInput(Axis.X);
 	AddControllerPitchInput(Axis.Y);
+}
+
+void AFPS_Character::Input_Sprint(const FInputActionValue& ActionValue)
+{
+	SetDesiredGait(ActionValue.Get<bool>() ? GameplayGaitTags::Running : GameplayGaitTags::Walking);
+}
+
+void AFPS_Character::Input_Walk()
+{
+	if (DesiredGait == GameplayGaitTags::Walking)
+	{
+		SetDesiredGait(GameplayGaitTags::Running);
+	}
+	else if (DesiredGait == GameplayGaitTags::Running)
+	{
+		SetDesiredGait(GameplayGaitTags::Walking);
+	}
+}
+
+void AFPS_Character::Input_Crouch()
+{
+	if (DesiredStance == GameplayStanceTags::Standing)
+	{
+		SetDesiredStance(GameplayStanceTags::Crouching);
+	}
+	else if (DesiredStance == GameplayStanceTags::Crouching)
+	{
+		SetDesiredStance(GameplayStanceTags::Standing);
+	}
+}
+
+void AFPS_Character::Input_Jump(const FInputActionValue& ActionValue)
+{
+	if (ActionValue.Get<bool>())
+	{
+		if (Stance == GameplayStanceTags::Crouching)
+		{
+			SetDesiredStance(GameplayStanceTags::Standing);
+			return;
+		}
+
+		Jump();
+	}
+	else
+	{
+		StopJumping();
+	}
+}
+
+void AFPS_Character::Input_View()
+{
+	SetViewModeTag(ViewMode == GameplayViewModeTags::ThirdPerson ? GameplayViewModeTags::FirstPerson : GameplayViewModeTags::ThirdPerson);
+}
+
+void AFPS_Character::Input_Cycle(const FInputActionValue& ActionValue)
+{
+	if (EquipmentManager) EquipmentManager->Cycle(ActionValue.Get<float>() > 0.f ? +1 : -1);
+}
+
+void AFPS_Character::Input_Slot(const FInputActionValue& ActionValue)
+{
+	if (EquipmentManager) EquipmentManager->EquipSlot(ActionValue.Get<float>() - 1);
+}
+
+void AFPS_Character::Input_Primary(const FInputActionValue& ActionValue)
+{
+	if (AGE_Equipment* Eq = EquipmentManager ? EquipmentManager->GetCurrentEquipment() : nullptr)
+	{
+		Eq->PrimaryAction(ActionValue.Get<bool>());
+	}
+}
+
+void AFPS_Character::Input_Secondary(const FInputActionValue& ActionValue)
+{
+	if (AGE_Equipment* Eq = EquipmentManager ? EquipmentManager->GetCurrentEquipment() : nullptr)
+	{
+		Eq->SecondaryAction(ActionValue.Get<bool>());
+	}
+}
+
+bool AFPS_Character::IsOnFirstPersonView() const
+{
+	if (IsLocallyControlled() && IsPlayerControlled())
+	{
+		return ViewMode == GameplayViewModeTags::FirstPerson;
+	}
+
+	return false;
 }

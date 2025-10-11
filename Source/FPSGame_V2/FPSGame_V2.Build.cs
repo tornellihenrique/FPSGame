@@ -35,6 +35,7 @@ public class FPSGame_V2 : ModuleRules
         });
 
         PublicDependencyModuleNames.AddRange(new string[] {
+            "GameplayEquipments",
             "GameplayLocomotion",
             "GameplayLocomotionCamera"
         });

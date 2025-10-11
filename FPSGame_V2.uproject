@@ -9,7 +9,8 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
-				"Engine"
+				"Engine",
+				"GameplayLocomotionCamera"
 			]
 		}
 	],
@@ -23,6 +24,10 @@
 		},
 		{
 			"Name": "GameplayLocomotion",
+			"Enabled": true
+		},
+		{
+			"Name": "GameplayEquipments",
 			"Enabled": true
 		}
 	]

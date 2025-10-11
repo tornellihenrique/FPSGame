@@ -44,3 +44,62 @@ struct FDamageInfo
 		return ::IsValid(Instigator);
 	}
 };
+
+USTRUCT(BlueprintType)
+struct FAnimState
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	TObjectPtr<UAnimSequence> PoseFP;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	TObjectPtr<UAnimSequence> PoseTP;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	FVector PivotOffset;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	FRotator OriginRelativeRotation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	FVector RightHandOffset;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	FVector LeftHandOffset;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	FVector RightClavicleOffset;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	FVector LeftClavicleOffset;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	FVector RightLowerarmOffset;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	FVector LeftLowerarmOffset;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	float ForceDisableRunningAlpha;
+
+	FAnimState()
+		: PivotOffset(FVector::ZeroVector)
+		, OriginRelativeRotation(FRotator::ZeroRotator)
+		, RightHandOffset(FVector::ZeroVector)
+		, LeftHandOffset(FVector::ZeroVector)
+		, RightClavicleOffset(FVector::ZeroVector)
+		, LeftClavicleOffset(FVector::ZeroVector)
+		, RightLowerarmOffset(FVector::ZeroVector)
+		, LeftLowerarmOffset(FVector::ZeroVector)
+		, ForceDisableRunningAlpha(0.0f)
+	{}
+
+	void Reset()
+	{
+		PivotOffset = FVector::ZeroVector;
+		OriginRelativeRotation = FRotator::ZeroRotator;
+		RightHandOffset = FVector::ZeroVector;
+		LeftHandOffset = FVector::ZeroVector;
+		RightClavicleOffset = FVector::ZeroVector;
+		LeftClavicleOffset = FVector::ZeroVector;
+		RightLowerarmOffset = FVector::ZeroVector;
+		LeftLowerarmOffset = FVector::ZeroVector;
+		ForceDisableRunningAlpha = 0.0f;
+	}
+};
