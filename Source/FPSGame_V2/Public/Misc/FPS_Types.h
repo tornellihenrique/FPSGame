@@ -4,6 +4,8 @@
 
 #include "FPS_Types.generated.h"
 
+class AGE_Equipment;
+
 USTRUCT(BlueprintType)
 struct FDamageInfo
 {
@@ -101,5 +103,23 @@ struct FAnimState
 		RightLowerarmOffset = FVector::ZeroVector;
 		LeftLowerarmOffset = FVector::ZeroVector;
 		ForceDisableRunningAlpha = 0.0f;
+	}
+};
+
+USTRUCT(BlueprintType)
+struct FPlayerLoadout
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Defaults)
+	TArray<TSoftClassPtr<AGE_Equipment>> Equipments;
+
+	FPlayerLoadout()
+		: Equipments({})
+	{}
+
+	bool IsValid() const
+	{
+		return Equipments.Num() > 0;
 	}
 };

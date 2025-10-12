@@ -127,6 +127,15 @@ public:
 protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Character|Animation")
 	FAnimState AnimState;
+	
+	UPROPERTY()
+	int32 EquipmentsSpawned;
+
+	UPROPERTY(Replicated)
+	int32 EquipmentsCount;
+
+public:
+	virtual void PopulateLoadout(const FPlayerLoadout& PlayerLoadout);
 
 protected:
 	UFUNCTION()

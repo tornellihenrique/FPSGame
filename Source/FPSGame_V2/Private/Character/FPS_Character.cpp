@@ -51,11 +51,7 @@ void AFPS_Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	FDoRepLifetimeParams DefaultParameters;
-	DefaultParameters.bIsPushBased = true;
-	DefaultParameters.Condition = COND_None;
-
-	// DOREPLIFETIME_WITH_PARAMS_FAST(AFPS_Character, Property, DefaultParameters);
+	DOREPLIFETIME(AFPS_Character, EquipmentsCount);
 }
 
 void AFPS_Character::PreInitializeComponents()
@@ -255,6 +251,73 @@ void AFPS_Character::SetupPlayerInputComponent(UInputComponent* Input)
 AGE_Equipment* AFPS_Character::GetCurrentEquipment() const
 {
 	return EquipmentManager ? EquipmentManager->GetCurrentEquipment() : nullptr;
+}
+
+void AFPS_Character::PopulateLoadout(const FPlayerLoadout& PlayerLoadout)
+{
+	if (!HasAuthority()) return;
+
+	if (!PlayerLoadout.IsValid()) return;
+
+	if (!EquipmentManager) return;
+
+	TArray<TSoftClassPtr<AGE_Equipment>> CheckedClasses = PlayerLoadout.Equipments.FilterByPredicate([](const TSoftClassPtr<AGE_Equipment>& InSoftClass)
+	{
+		return !InSoftClass.IsNull();
+	});
+
+	TArray<TSubclassOf<AGE_Equipment>> ValidClasses;
+	ValidClasses.Reserve(CheckedClasses.Num());
+
+	for (const TSoftClassPtr<AGE_Equipment>& InSoftClass : CheckedClasses)
+	{
+		if (TSubclassOf<AGE_Equipment> EquipementClass = InSoftClass.LoadSynchronous())
+		{
+			ValidClasses.Add(EquipementClass);
+		}
+	}
+
+	EquipmentsCount = ValidClasses.Num();
+	EquipmentsSpawned = 0;
+
+	if (EquipmentsCount <= 0) return;
+
+	const FTransform SpawnTransform(FRotator::ZeroRotator, FVector(0.0f, 0.0f, -50000.0f), FVector::OneVector);
+
+	for (int32 i = 0; i < EquipmentsCount; ++i)
+	{
+		TSubclassOf<AGE_Equipment> EquipmentClass = ValidClasses[i];
+		if (!EquipmentClass) continue;
+
+		AGE_Equipment* SpawnedEquipment = GetWorld()->SpawnActorDeferred<AGE_Equipment>(EquipmentClass, SpawnTransform, this, this, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+
+		if (!SpawnedEquipment)
+		{
+			if (++EquipmentsSpawned == EquipmentsCount)
+			{
+				// #TODO
+				return;
+			}
+
+			continue;
+		}
+
+		SpawnedEquipment->SetOwningCharacter(this);
+
+		SpawnedEquipment->FinishSpawning(SpawnTransform);
+
+		const int32 SlotIndex = EquipmentManager->AddEquipment(SpawnedEquipment, i);
+		if (SlotIndex == INDEX_NONE)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Failed to add equipment %s to slot %i"), *GetNameSafe(SpawnedEquipment), SlotIndex);
+		}
+
+		if (++EquipmentsSpawned == EquipmentsCount)
+		{
+			// #TODO
+			return;
+		}
+	}
 }
 
 void AFPS_Character::HandleDeathPayload(const FDeathEventPayload& Data)
