@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/GL_AnimInstance.h"
+#include "Misc/GA_Types.h"
 #include "FPS_AnimInstance.generated.h"
 
 class AFPS_Character;
@@ -11,6 +12,10 @@ UCLASS()
 class FPSGAME_V2_API UFPS_AnimInstance : public UGL_AnimInstance
 {
 	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Settings|General")
+	bool bFirstPerson = false;
 
 public:
 	UFPS_AnimInstance();
@@ -34,7 +39,10 @@ public:
 	TWeakObjectPtr<AGE_Equipment> ActiveEquipment;
 
 public:
-	UFUNCTION(BlueprintPure, Category="State", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintPure, Category="State", meta=(BlueprintThreadSafe))
 	const FAnimState& GetAnimState() const;
+	
+	UFUNCTION(BlueprintPure, Category="State", meta=(BlueprintThreadSafe, ReturnDisplayName="Procedural Motion Input"))
+	FGA_ProceduralInput GetProceduralMotionInput() const;
 
 };

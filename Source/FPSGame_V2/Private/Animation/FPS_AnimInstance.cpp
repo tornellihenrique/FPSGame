@@ -40,6 +40,20 @@ void UFPS_AnimInstance::NativeThreadSafeUpdateAnimation(float DeltaTime)
 	Super::NativeThreadSafeUpdateAnimation(DeltaTime);
 }
 
+FGA_ProceduralInput UFPS_AnimInstance::GetProceduralMotionInput() const
+{
+	FGA_ProceduralInput Out;
+
+	if (IsValid(FPSCharacter))
+	{
+		Out.SourceActorOverride = FPSCharacter->GetCurrentEquipment();
+		Out.PivotOffset = GetAnimState().PivotOffset;
+		Out.bFirstPerson = bFirstPerson;
+	}
+
+	return Out;
+}
+
 const FAnimState& UFPS_AnimInstance::GetAnimState() const
 {
 	if (IsValid(FPSCharacter))

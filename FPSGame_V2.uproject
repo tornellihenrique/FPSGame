@@ -29,6 +29,10 @@
 		{
 			"Name": "GameplayEquipments",
 			"Enabled": true
+		},
+		{
+			"Name": "GameplayAnimation",
+			"Enabled": true
 		}
 	]
 }
