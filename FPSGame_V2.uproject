@@ -33,6 +33,10 @@
 		{
 			"Name": "GameplayAnimation",
 			"Enabled": true
+		},
+		{
+			"Name": "ImGui",
+			"Enabled": true
 		}
 	]
 }

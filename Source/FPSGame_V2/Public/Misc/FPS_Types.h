@@ -4,6 +4,12 @@
 
 #include "FPS_Types.generated.h"
 
+#ifdef IMGUI_API
+#define WITH_IMGUI 1
+#else
+#define WITH_IMGUI 0
+#endif // IMGUI_API
+
 class AGE_Equipment;
 
 USTRUCT(BlueprintType)

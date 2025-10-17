@@ -40,5 +40,10 @@ public class FPSGame_V2 : ModuleRules
             "GameplayLocomotion",
             "GameplayLocomotionCamera"
         });
+
+        if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+        {
+            PrivateDependencyModuleNames.Add("ImGui");
+        }
     }
 }

@@ -12,6 +12,7 @@
 #include "Equipments/GE_Equipment.h"
 #include "Misc/GE_EquipmentAnimData.h"
 #include "Camera/FPS_CameraComponent.h"
+#include "Animation/FPS_AnimInstance.h"
 
 AFPS_Character::AFPS_Character(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -245,6 +246,16 @@ void AFPS_Character::SetupPlayerInputComponent(UInputComponent* Input)
 		EIC->BindAction(IA_Slot, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Slot);
 		EIC->BindAction(IA_Primary, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Primary);
 		EIC->BindAction(IA_Secondary, ETriggerEvent::Triggered, this, &AFPS_Character::Input_Secondary);
+	}
+}
+
+void AFPS_Character::OnJumpedNetworked()
+{
+	Super::OnJumpedNetworked();
+
+	if (UFPS_AnimInstance* AnimInstance = Cast<UFPS_AnimInstance>(MeshFP->GetAnimInstance()))
+	{
+		AnimInstance->Jump();
 	}
 }
 

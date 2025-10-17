@@ -113,6 +113,7 @@ public:
 	//~ End of APawn
 
 	//~ AGL_Character
+	virtual void OnJumpedNetworked() override;
 	//~ End of AGL_Character
 
 	//~ IGE_CharacterInterface
