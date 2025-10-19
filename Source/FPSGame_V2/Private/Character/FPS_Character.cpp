@@ -118,17 +118,13 @@ void AFPS_Character::Tick(float DeltaTime)
 			AnimState.LeftLowerarmOffset = EquipmentAnimData->LeftLowerarmOffset;
 		}
 
-		// AnimState.PivotOffset = -CurrentEquipment->GetPivotPoint(); // #TODO
+		AnimState.PivotOffset = -CurrentEquipment->GetPivotPoint();
 
 		float TargetForceDisableRunningAlpha = 0.0f;
-
-// 		if (AGE_FireWeapon* CurrentFireWeapon = GetCurrentEquipment<AGE_FireWeapon>())
-// 		{
-// 			if (!CurrentFireWeapon->CanRun())
-// 			{
-// 				TargetForceDisableRunningAlpha = 1.0f;
-// 			}
-// 		}
+		if (!CurrentEquipment->CanRun())
+		{
+			TargetForceDisableRunningAlpha = 1.0f;
+		}
 
 		AnimState.ForceDisableRunningAlpha = FMath::FInterpTo(AnimState.ForceDisableRunningAlpha, TargetForceDisableRunningAlpha, DeltaTime, 15.0f);
 	}
@@ -166,6 +162,20 @@ void AFPS_Character::CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutRes
 	}
 
 	Super::CalcCamera(DeltaTime, OutResult);
+}
+
+void AFPS_Character::GetActorEyesViewPoint(FVector& OutLocation, FRotator& OutRotation) const
+{
+	Super::GetActorEyesViewPoint(OutLocation, OutRotation);
+
+	if (CameraComponent && CameraComponent->IsActive())
+	{
+		FMinimalViewInfo ViewInfo;
+		CameraComponent->GetViewInfo(ViewInfo);
+
+		OutLocation = ViewInfo.Location;
+		OutRotation = ViewInfo.Rotation;
+	}
 }
 
 void AFPS_Character::PossessedBy(AController* NewController)
@@ -249,6 +259,16 @@ void AFPS_Character::SetupPlayerInputComponent(UInputComponent* Input)
 	}
 }
 
+bool AFPS_Character::CanRun() const
+{
+	if (GetCurrentEquipment() && !GetCurrentEquipment()->CanRun())
+	{
+		return false;
+	}
+
+	return Super::CanRun();
+}
+
 void AFPS_Character::OnJumpedNetworked()
 {
 	Super::OnJumpedNetworked();
@@ -259,9 +279,42 @@ void AFPS_Character::OnJumpedNetworked()
 	}
 }
 
+void AFPS_Character::OnRep_ViewMode()
+{
+	Super::OnRep_ViewMode();
+
+	if (AGE_Equipment* CurrentEquipment = GetCurrentEquipment())
+	{
+		CurrentEquipment->UpdateViewMode(IsOnFirstPersonView());
+	}
+
+	if (IsOnFirstPersonView())
+	{
+		GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
+		GetMesh()->SetOwnerNoSee(true);
+
+		MeshFP->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+		MeshFP->SetVisibility(true);
+	}
+	else
+	{
+		GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::None;
+		GetMesh()->SetOwnerNoSee(false);
+
+		MeshFP->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+		MeshFP->SetVisibility(false);
+	}
+}
+
 AGE_Equipment* AFPS_Character::GetCurrentEquipment() const
 {
 	return EquipmentManager ? EquipmentManager->GetCurrentEquipment() : nullptr;
+}
+
+bool AFPS_Character::ShouldUseRunFireDelay() const
+{
+	return LocomotionMode.MatchesTagExact(GameplayLocomotionModeTags::Grounded) &&
+		(Gait.MatchesTagExact(GameplayGaitTags::Running) || Gait.MatchesTagExact(GameplayGaitTags::Sprinting));
 }
 
 void AFPS_Character::PopulateLoadout(const FPlayerLoadout& PlayerLoadout)

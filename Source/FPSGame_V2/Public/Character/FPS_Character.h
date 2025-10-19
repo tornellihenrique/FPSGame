@@ -98,6 +98,7 @@ public:
 	virtual void EndViewTarget(APlayerController* PC) override;
 
 	virtual void CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult);
+	virtual void GetActorEyesViewPoint(FVector& OutLocation, FRotator& OutRotation) const override;
 	//~ End of AActor
 	
 	//~ APawn
@@ -113,7 +114,9 @@ public:
 	//~ End of APawn
 
 	//~ AGL_Character
+	virtual bool CanRun() const override;
 	virtual void OnJumpedNetworked() override;
+	virtual void OnRep_ViewMode() override;
 	//~ End of AGL_Character
 
 	//~ IGE_CharacterInterface
@@ -123,6 +126,10 @@ public:
 
 	virtual USceneComponent* GetEquipmentHolderFP() const override { return EquipmentHolderFP; }
 	virtual USceneComponent* GetEquipmentHolderTP() const override { return EquipmentHolderTP; }
+
+	virtual void SetIsAimingEquipment(bool bNewIsAiming) override { SetAiming(bNewIsAiming); }
+
+	virtual bool ShouldUseRunFireDelay() const override;
 	//~ IGE_CharacterInterface
 
 protected:

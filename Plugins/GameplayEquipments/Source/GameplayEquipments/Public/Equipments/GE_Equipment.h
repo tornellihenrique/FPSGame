@@ -135,6 +135,10 @@ public:
 
 	virtual void UpdateViewMode(bool bFirstPerson);
 
+	virtual FVector GetPivotPoint() const;
+
+	virtual bool CanRun() const { return true; }
+
 public:
 	UFUNCTION(BlueprintPure, Category="State")
 	FORCEINLINE USkeletalMeshComponent* GetMeshFP() const { return MeshFP; }

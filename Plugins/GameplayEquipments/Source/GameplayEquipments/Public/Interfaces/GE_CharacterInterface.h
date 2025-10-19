@@ -26,4 +26,8 @@ public:
 	virtual USceneComponent* GetEquipmentHolderFP() const { return nullptr; }
 	virtual USceneComponent* GetEquipmentHolderTP() const { return nullptr; }
 
+	virtual void SetIsAimingEquipment(bool bNewIsAiming) {}
+
+	virtual bool ShouldUseRunFireDelay() const { return false; }
+
 };

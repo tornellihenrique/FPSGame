@@ -362,3 +362,15 @@ void AGE_Equipment::UpdateViewMode(bool bFirstPerson)
 		MeshFP->SetVisibility(false, true);
 	}
 }
+
+FVector AGE_Equipment::GetPivotPoint() const
+{
+	if (IsValid(MeshFP))
+	{
+		FVector P = MeshFP->GetSocketTransform(TEXT("PivotPoint"), RTS_Component).GetLocation();
+		P.Z *= -1.f;
+		return P;
+	}
+
+	return FVector::ZeroVector;
+}
